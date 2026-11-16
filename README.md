@@ -64,12 +64,13 @@ listed in `CHANGELOG.md`.
 
 ## Status
 
-Published as `v0.1.0`; install verified via `npx skills add drnhsproject/satpam-commit`.
-Trials: throwaway repositories with planted traps, plus one real-project trial (agent running the
-SKILL.md flow). Known open gap: guards cannot see gitignored files (a planted `.env` passes the
-content scans; see `CHANGELOG.md`, Unreleased). Trigger-tested on 16 queries (2-run `claude -p`
-evals: 13/16; description-only proxy: 16/16; see `evals/` and `CHANGELOG.md`). Tell the author
-what it got wrong.
+Published as `v0.1.1`; install verified via `npx skills add drnhsproject/satpam-commit`
+(byte-identical to the repo). Trials: throwaway repositories with planted traps, plus two real
+repository trials (an agent simulating the SKILL.md flow, and an adaCODE tool-calling run in
+`mvp-react`): 4/4 planted traps caught, including the gitignored `.env` secret that earlier
+trials missed. Trigger-tested on 16 queries (2-run `claude -p` evals: 13/16; description-only
+proxy on the adaCODE backend: 16/16 stable, 6 runs each; see `evals/` and `CHANGELOG.md`).
+Tell the author what it got wrong.
 
 ## License
 
