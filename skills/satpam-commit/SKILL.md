@@ -41,6 +41,13 @@ alone. Never invent a result, a file, or command output.
 /satpam-commit --scope=<path>     limit to one path
 ```
 
+Not every agent has slash commands. Where there are none, the user names the skill in plain
+words ("use satpam-commit with --dry-run"); the flags mean the same. Wherever this file says
+"ask", use the agent's question tool if it has one, otherwise put the question and its options
+in a normal message and wait for the answer. The commands below assume git 2.23 or newer and a
+POSIX shell (on Windows: Git Bash or WSL); if the shell cannot run them, say so and hand back
+rather than improvising a weaker check.
+
 Flags combine. `--split` and `--single` are mutually exclusive, and `--split` is refused
 with `--amend`. `--amend` is refused when the last commit already exists on any remote branch
 (`git branch -r --contains HEAD` prints something) or when there is nothing to amend.

@@ -11,7 +11,10 @@ Usage:
   python3 evals/run-triggers.py evals/triggers.json [--skill NAME] [--runs N] [--jobs N] [--model M]
 
 Triggers file: [{"query": "...", "trigger": true|false}, ...]
-Needs the `claude` CLI, logged in. Each run is a real, billed agent session.
+Measures Claude Code only (it drives the `claude` CLI, which must be logged in). Other agents
+need their own runner; triggers-<name>.json is plain data and can be reused.
+Each run is a real, billed agent session. Do not run it while your usage limit is nearly
+exhausted: every run then fails and is counted as "not triggered", which looks like a result.
 """
 import argparse
 import json

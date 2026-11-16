@@ -3,7 +3,12 @@
 An Agent Skill that commits your work carefully: it reads the real diff, guards the
 repository against the usual accidents, and leaves clean, reviewable commits.
 
+It is a plain `SKILL.md` folder, so it works with any coding agent that supports Agent Skills.
+
 *Satpam* is Indonesian for a security guard: it stands at the door of your commit and checks what goes in.
+
+In Claude Code, run it as a slash command. In an agent without slash commands, ask by name
+("use satpam-commit with --dry-run"); the flags mean the same.
 
 ```
 /satpam-commit                    review → guard → stage → gate → commit
@@ -38,9 +43,17 @@ reported by file and line only, never printed.
 
 The skill is instructions to the agent, not a sandbox. Keep your normal permission prompts on.
 
+## Requirements
+
+- Git 2.23 or newer, and a POSIX shell (Git Bash or WSL on Windows).
+- An agent that loads Agent Skills (a folder with `SKILL.md`) and can run shell commands.
+- The agent needs permission to run `git` and read the working tree. Where it has a question
+  tool the skill uses it; otherwise it asks in plain text and waits.
+
 ## Install
 
-With the community `skills` CLI ([vercel-labs/skills](https://github.com/vercel-labs/skills)):
+With the community `skills` CLI ([vercel-labs/skills](https://github.com/vercel-labs/skills)),
+which places the skill for the agents it detects on your machine:
 
 ```bash
 npx skills add drnhsproject/satpam-commit --list
@@ -52,7 +65,8 @@ The CLI collects anonymous usage data; set `DISABLE_TELEMETRY=1` to opt out. It 
 third-party tool, and skills run with your agent's permissions: read `SKILL.md` before
 installing any skill, this one included.
 
-Without the CLI, copy the folder:
+Without the CLI, copy the `skills/satpam-commit` folder into your agent's skills directory
+(see that agent's documentation for the path). For Claude Code:
 
 ```bash
 cp -R skills/satpam-commit ~/.claude/skills/             # all projects
@@ -64,12 +78,21 @@ listed in `CHANGELOG.md`.
 
 ## Status
 
-Published as `v0.1.1`; install verified via `npx skills add drnhsproject/satpam-commit`
-(byte-identical to the repo). Trials: throwaway repositories with planted traps, plus two real
-repository trials (an agent simulating the SKILL.md flow, and an adaCODE tool-calling run in
-`mvp-react`): 4/4 planted traps caught, including the gitignored `.env` secret that earlier
-trials missed. Trigger-tested on 16 queries (2-run `claude -p` evals: 13/16; description-only
-proxy on the adaCODE backend: 16/16 stable, 6 runs each; see `evals/` and `CHANGELOG.md`).
+Latest release: `v0.1.2`. What has and has not been tested:
+
+- **Install:** `npx skills add` succeeds and the installed copy is byte-identical to the repo.
+- **Behavior:** throwaway repositories with planted traps (secret, build output, conflict
+  markers, protected branch, rebase and push paths), plus a real repository run on a second
+  agent runtime with tool calling. All 4 planted traps were caught, including a gitignored
+  `.env`, and no destructive command ran.
+- **Triggering, Claude Code only:** 16 queries x 6 runs (`evals/`): 15/16 pass. All 8 negative
+  queries (push, merge, rebase, deploy, unrelated) stayed silent in all 48 runs; the 7 plain-
+  language commit requests triggered 41 of 42 runs. The one failing query is the literal
+  `/satpam-commit` sent through `claude -p`, which the headless runner does not treat as a
+  slash command; this is probably a runner artifact, not measured beyond that.
+- **Other agents:** the behavior run above is the only evidence. Triggering has not been
+  measured on them; `evals/triggers-satpam-commit.json` is plain data you can reuse.
+
 Tell the author what it got wrong.
 
 ## License
