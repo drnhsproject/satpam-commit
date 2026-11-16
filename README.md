@@ -64,9 +64,12 @@ listed in `CHANGELOG.md`.
 
 ## Status
 
-Written from scratch. Run once in a throwaway repository with deliberate traps (not yet on a real
-project), and trigger-tested on 16 queries (15 pass; see `evals/` and `CHANGELOG.md`). Treat the
-first runs as a trial and tell the author what it got wrong.
+Published as `v0.1.0`; install verified via `npx skills add drnhsproject/satpam-commit`.
+Trials: throwaway repositories with planted traps, plus one real-project trial (agent running the
+SKILL.md flow). Known open gap: guards cannot see gitignored files (a planted `.env` passes the
+content scans; see `CHANGELOG.md`, Unreleased). Trigger-tested on 16 queries (2-run `claude -p`
+evals: 13/16; description-only proxy: 16/16; see `evals/` and `CHANGELOG.md`). Tell the author
+what it got wrong.
 
 ## License
 
