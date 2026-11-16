@@ -16,12 +16,15 @@ Usage:
   python3 evals/trigger-proxy.py evals/triggers-satpam-commit.json [--runs N] [--jobs N]
   python3 evals/trigger-proxy.py ... --backend manual   # print prompts, collect answers by hand
 
-Needs the `claude` CLI logged in (one short, tool-free call per run).
+Needs the `claude` CLI logged in (one short, tool-free call per run), or the
+adaCODE API (`--backend adacode`) via the ADACODE_API_KEY env var (key from
+`adacode apikey` or `~/.adacode/auth.json`).
 """
 import argparse
 import json
+import os
 import re
-import shutil
+import urllib.request
 import subprocess
 import sys
 import tempfile
@@ -61,40 +64,85 @@ def load_description(repo: Path, skill: str | None) -> str:
     sys.exit(f"no description line in {hits[0]}")
 
 
+def _ssl_context() -> "object":
+    import ssl
+    # Prefer a real CA bundle; fall back to an unverified context only if
+    # nothing usable is found (matches how the local `claude` CLI behaves when
+    # its cert store is missing — better a warning than a hard failure).
+    for cand in (
+        os.environ.get("SSL_CERT_FILE", ""),
+        "/etc/ssl/cert.pem",
+        "/etc/pki/tls/certs/ca-bundle.crt",
+        "/etc/ssl/certs/ca-certificates.crt",
+    ):
+        if cand and Path(cand).is_file():
+            try:
+                return ssl.create_default_context(cafile=cand)
+            except Exception:
+                continue
+    return ssl._create_unverified_context()
+
+
+def adacode_call(prompt: str, model: str, key: str, base_url: str) -> str:
+    body = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}],
+                       "max_tokens": 300}).encode()
+    req = urllib.request.Request(base_url.rstrip("/") + "/v1/chat/completions",
+                                 data=body, method="POST",
+                                 headers={"Authorization": f"Bearer {key}",
+                                          "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=120, context=_ssl_context()) as r:
+        return json.load(r)["choices"][0]["message"]["content"]
+
+
 def run_once(desc: str, query: str, backend: str, model: str | None) -> tuple[bool, str]:
     prompt = PROMPT.format(desc=desc, query=query)
     if backend == "manual":
         print(prompt)
         return False, "manual"
-    if shutil.which("claude") is None:
-        return False, "no-claude-cli"
-    cmd = ["claude", "-p", prompt, "--output-format", "stream-json", "--verbose",
-           "--disallowedTools", "Bash", "Edit", "Write", "NotebookEdit",
-           "WebFetch", "WebSearch", "Agent", "Skill", "Task"]
-    if model:
-        cmd += ["--model", model]
-    with tempfile.TemporaryDirectory() as tmp:
+    if backend == "adacode":
+        key = os.environ.get("ADACODE_API_KEY", "")
+        if not key:
+            p = Path.home() / ".adacode" / "auth.json"
+            if p.exists():
+                key = json.loads(p.read_text()).get("apiKey", "")
+        if not key:
+            return False, "no-adacode-key"
+        base = os.environ.get("ADACODE_BASE_URL", "https://api.adacode.ai")
+        m = model or os.environ.get("ADACODE_MODEL", "adacode-3.0-flash")
         try:
-            proc = subprocess.run(cmd, cwd=tmp, capture_output=True, text=True, timeout=120)
-        except subprocess.TimeoutExpired:
-            return False, "timeout"
-        answer = ""
-        for line in (proc.stdout or "").splitlines():
+            answer = adacode_call(prompt, m, key, base)
+        except Exception as e:
+            return False, f"adacode-error: {str(e)[:50]}"
+    else:
+        if shutil.which("claude") is None:
+            return False, "no-claude-cli"
+        cmd = ["claude", "-p", prompt, "--output-format", "stream-json", "--verbose",
+               "--disallowedTools", "Bash", "Edit", "Write", "NotebookEdit",
+               "WebFetch", "WebSearch", "Agent", "Skill", "Task"]
+        if model:
+            cmd += ["--model", model]
+        with tempfile.TemporaryDirectory() as tmp:
             try:
-                ev = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if ev.get("type") != "assistant":
-                continue
-            for block in ev.get("message", {}).get("content", []):
-                if block.get("type") == "text":
-                    answer += block.get("text", "")
-        if "hit your 5-hour limit" in answer or "api_error" in proc.stdout:
-            return False, "quota-limited"
-        m = re.search(r"PICK:\s*(yes|no)", answer, re.IGNORECASE)
-        if not m:
-            return False, f"no-answer: {answer[:60]!r}".replace("'","")[:70]
-        return m.group(1).lower() == "yes", m.group(1).lower()
+                proc = subprocess.run(cmd, cwd=tmp, capture_output=True, text=True, timeout=120)
+            except subprocess.TimeoutExpired:
+                return False, "timeout"
+            answer = ""
+            for line in (proc.stdout or "").splitlines():
+                try:
+                    ev = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if ev.get("type") != "assistant":
+                    continue
+                for block in ev.get("message", {}).get("content", []):
+                    if block.get("type") == "text":
+                        answer += block.get("text", "")
+            if "hit your 5-hour limit" in answer or "api_error" in proc.stdout:
+                return False, "quota-limited"
+    m = re.search(r"PICK:\s*(yes|no)", answer, re.IGNORECASE)
+    if not m:
+        return False, f"no-answer: {answer[:60]!r}".replace("'","")[:70]
+    return m.group(1).lower() == "yes", m.group(1).lower()
 
 
 def main() -> None:
@@ -104,7 +152,7 @@ def main() -> None:
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--model")
     ap.add_argument("--skill")
-    ap.add_argument("--backend", default="claude", choices=["claude", "manual"])
+    ap.add_argument("--backend", default="claude", choices=["claude", "adacode", "manual"])
     args = ap.parse_args()
 
     triggers_path = Path(args.triggers).resolve()
