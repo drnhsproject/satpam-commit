@@ -83,6 +83,19 @@ Below the table list explicitly, because a stat line hides them:
 
 If the branch is `[behind N]`, say so once: the commit lands on a stale tip.
 
+**Ignored files.** `git status` and `git ls-files --others` never show gitignored paths,
+so list what is actually on disk but ignored:
+
+```bash
+git ls-files --others --ignored --exclude-standard
+```
+
+Keep the short list of ignored *files* (skip ignored directories unless they hold files
+you would otherwise miss, e.g. `dist/`); pass that list to the Step 2 guard commands as
+`<ignored files>`. Gitignored files are not committed by a normal `git add -- <path>`, but
+`git add -f` can force them, and a wrong `.gitignore` entry can hide a secret you meant to
+commit — report both.
+
 ## Step 2 — Guard (mandatory)
 
 ### 2a. Blocking: never stage, stop and report
@@ -93,9 +106,11 @@ If the branch is `[behind N]`, say so once: the commit lands on a stale tip.
 git diff --name-only --diff-filter=U
 { git diff --check; git diff --cached --check; } | grep -i 'conflict marker'
 git grep --untracked -nE '^(<{7}|\|{7}|={7}|>{7})( |$)' -- <paths to stage>
+# gitignored new files, where the marker grep above cannot look:
+for f in <ignored files>; do grep -lE '^(<{7}|\|{7}|={7}|>{7})( |$)' "$f"; done
 ```
 
-`--untracked` matters: without it `git grep` skips new files, which are exactly the ones about to be added. Lockfiles are scanned too. On any hit, list every `file:line` with its marker type and ask:
+`--untracked` matters: without it `git grep` skips new files, which are exactly the ones about to be added. Ignored files are skipped by every git command, so the loop with plain `grep` covers them. Lockfiles are scanned too. On any hit, list every `file:line` with its marker type and ask:
 **Fix now** (resolve each spot *with* the user, never pick a side yourself, stage the resolved
 file, re-run until clean) or **Stop** (nothing staged). There is no "commit anyway". The only
 hit the user may waive is a lone `=======` in a Markdown file that is a heading underline,
@@ -107,16 +122,48 @@ new branch from the current tip carrying the uncommitted work (`git switch -c <t
 propose the name from the diff), or cancel. Never create a branch from a different base
 without saying so.
 
-**Secrets.** Block files named like `.env`, `*.pem`, `*.key`, `id_rsa*`, `*.p12`, credentials
-or token files (`.env.example` with placeholders is fine), and scan the *added lines* of tracked files (`git diff`) and the *whole content* of new files (`git grep --untracked`) for
-private-key headers and for values assigned to names like `password`, `secret`, `token`,
-`api_key`, or well-known key shapes (cloud access keys, `ghp_`, `sk-`, JWTs). Report file and
-line only. Offer: unstage and add to ignore, or the user confirms a line is a placeholder.
-If a secret was already committed earlier, say that rotating it is the user's job.
+**Secrets.** Check the names of every file that will exist after staging — tracked,
+untracked, *and* gitignored (the `<ignored files>` list from Step 1):
 
-**Build output and junk.** Block or ask about: `node_modules/`, `dist/`, `build/`, `.next/`,
-`coverage/`, `__pycache__/`, `.DS_Store`, editor folders, logs, local databases, archives,
-and files over about 1 MB that are not clearly intended assets. Never add them to `.gitignore`
+```bash
+git diff --name-only; git diff --cached --name-only
+git ls-files --others
+# ignore patterns that match real files on disk, per file:
+for f in <ignored files>; do git check-ignore -v --no-index -- "$f" || true; done
+```
+
+Block files named like `.env`, `*.pem`, `*.key`, `id_rsa*`, `*.p12`, credentials or
+token files (`.env.example` with placeholders is fine). A new `.env` that only appears in
+the ignored list is still a finding: someone may `git add -f` it, or the ignore entry may
+be hiding a secret you meant to commit.
+
+Then scan the *added lines* of tracked files (`git diff`) and the *whole content* of new
+files — `git grep --untracked` for untracked ones, plain `grep` over the `<ignored files>`
+list, which every git command cannot see:
+
+```bash
+for f in <ignored files>; do git check-ignore -v -- "$f" || true; done
+```
+
+Scan for private-key headers and for values assigned to names like `password`, `secret`,
+`token`, `api_key`, or well-known key shapes (cloud access keys, `ghp_`, `sk-`, JWTs).
+Report file and line only. Offer: unstage and add to ignore, or the user confirms a line is
+a placeholder. If a secret was already committed earlier, say that rotating it is the
+user's job.
+
+**Build output and junk.** Same name check over the ignored list:
+
+```bash
+for f in <ignored files>; do
+  case "$f" in
+  node_modules/*|dist/*|build/*|.next/*|coverage/*|__pycache__/*|.DS_Store|*.log|*.sqlite|*.db|*.zip|*.tar*|*.7z) echo "$f";;
+  esac
+done
+```
+
+Block or ask about: `node_modules/`, `dist/`, `build/`, `.next/`, `coverage/`,
+`__pycache__/`, `.DS_Store`, editor folders, logs, local databases, archives, and files
+over about 1 MB that are not clearly intended assets. Never add them to `.gitignore`
 without asking.
 
 ### 2b. Warn, then ask

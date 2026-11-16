@@ -2,7 +2,13 @@
 
 ## Unreleased
 
-- Real-project trial (`mvp-react` and an earlier `langitku-frontend-v2` run, agent simulating the SKILL.md flow, traps planted in the working tree). Conflict markers in a new, not-ignored file: caught. **Gitignored traps are invisible to every git command in the skill** — a planted `.env` (secret), `dist/bundle.js` and `.DS_Store` are respected by `git grep --untracked` and absent from `git status --others`, so the §2a secret and build-output guards only work as prose. The §2a name-based block ("files named like `.env`, `*.pem` ...") has no executable form in the flow. Open: add a filesystem-level guard (`git check-ignore` / `git status --ignored`) so content scans reach gitignored files. Also observed: the global secret-keyword scan is very noisy on a real repository; scoping it to the paths about to be staged keeps it clean.
+- Guards now see gitignored files: Step 1 lists them with `git ls-files --others --ignored --exclude-standard`
+  and passes the list through Step 2 (conflict markers, secret names, secret content, build-output
+  junk) with plain `grep`/`case` loops, because every git command skips ignored paths.
+  Verified in a scratch repository against both trials' trap sets: `.env` with a `sk-test-`
+  value, `dist/bundle.js`, `.DS_Store` and conflict markers in a gitignored new file are all
+  caught now — the `ls-files` listing surfaces the traps, the `grep` loops hit them, and
+  `git check-ignore -v` shows which pattern hides each.
 - Trigger proxy (`evals/trigger-proxy.py`, model answers the description-only question per query; signal, not a substitute for observed Skill calls): 16/16 queries agree with the expected triggers, including the 3 positives that failed the 2-run `claude -p` runs and all 8 negatives. The description is adequate on its own; the remaining question is runner/agent behavior, re-measure with `run-triggers.py --runs 6` when the CLI quota allows.
 - v0.1.0 published: `github.com/drnhsproject/satpam-commit`, tag `v0.1.0`. Install verified: `npx skills add drnhsproject/satpam-commit` succeeds and the installed copy is byte-identical to the repo (`diff -r`). Publish exposed the YAML bug in the first push: an unquoted `description` containing `: ` failed the skills CLI's front-matter parse — fixed in `a47d342` (quoted value, single-quoted inner examples).
 ## 0.1.0 — 2026-11-16
