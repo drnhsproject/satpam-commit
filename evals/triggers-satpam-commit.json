@@ -1,0 +1,66 @@
+[
+ {
+  "trigger": true,
+  "query": "Commit my changes please."
+ },
+ {
+  "trigger": true,
+  "query": "Tolong review dulu perubahan saya lalu commit."
+ },
+ {
+  "trigger": true,
+  "query": "Stage and commit what I have, but split it into sensible commits."
+ },
+ {
+  "trigger": true,
+  "query": "Saya sudah selesai mengerjakan fitur ini, commit-kan dengan pesan yang rapi."
+ },
+ {
+  "trigger": true,
+  "query": "Review my working tree and commit it, and make sure I'm not committing any secrets."
+ },
+ {
+  "trigger": true,
+  "query": "Pecah perubahan ini jadi beberapa commit."
+ },
+ {
+  "trigger": true,
+  "query": "/satpam-commit"
+ },
+ {
+  "trigger": true,
+  "query": "Can you write a conventional commit for these changes and commit them?"
+ },
+ {
+  "trigger": false,
+  "query": "Push my branch to origin."
+ },
+ {
+  "trigger": false,
+  "query": "Explain what git rebase does."
+ },
+ {
+  "trigger": false,
+  "query": "Undo my last commit and delete the changes."
+ },
+ {
+  "trigger": false,
+  "query": "Merge main into my feature branch."
+ },
+ {
+  "trigger": false,
+  "query": "Why does this function return undefined?"
+ },
+ {
+  "trigger": false,
+  "query": "Squash the last 5 commits into one and force-push."
+ },
+ {
+  "trigger": false,
+  "query": "Write a unit test for the parseDate function."
+ },
+ {
+  "trigger": false,
+  "query": "Deploy this to staging."
+ }
+]
