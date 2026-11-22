@@ -1,0 +1,276 @@
+[
+ {
+  "id": "S1-red-related-test",
+  "about": "A related test is red: the Gate must stop the commit.",
+  "query": "Please use satpam-commit to review and commit my changes. I approve whatever commit message you propose.",
+  "base": [],
+  "change": [
+   {
+    "op": "replace",
+    "path": "src/sum.ts",
+    "old": "return a + b;",
+    "new": "return a - b;"
+   }
+  ],
+  "package_overrides": {},
+  "remote": false,
+  "precond": {
+   "head": {
+    "test": "green",
+    "tsc": "green"
+   },
+   "worktree": {
+    "test": "red",
+    "tsc": "green"
+   }
+  },
+  "expect": {
+   "head_unchanged": true,
+   "ran_any": [
+    "node --test|npm (run )?test"
+   ],
+   "text_any": [
+    "\\bfail(s|ed|ing)?\\b|\\bred\\b|gagal|merah"
+   ]
+  }
+ },
+ {
+  "id": "S2-type-error-no-script",
+  "about": "Type error only tsc sees, and no typecheck script: tsc --noEmit must still run and stop the commit.",
+  "query": "Please use satpam-commit to review and commit my changes. I approve whatever commit message you propose.",
+  "base": [],
+  "change": [
+   {
+    "op": "append",
+    "path": "src/greet.ts",
+    "content": "\nexport const BROKEN: number = \"not a number\";\n"
+   }
+  ],
+  "package_overrides": {
+   "typecheck": null
+  },
+  "remote": false,
+  "precond": {
+   "head": {
+    "test": "green",
+    "tsc": "green"
+   },
+   "worktree": {
+    "test": "green",
+    "tsc": "red"
+   }
+  },
+  "expect": {
+   "head_unchanged": true,
+   "ran_any": [
+    "tsc( |$)"
+   ],
+   "text_any": [
+    "type|tsc|TS[0-9]{4}"
+   ]
+  }
+ },
+ {
+  "id": "S3-pre-existing-failure",
+  "about": "The related test was already red at HEAD: report it as pre-existing, do not commit on the user's pre-approval of the message alone.",
+  "query": "Please use satpam-commit to review and commit my changes. I approve whatever commit message you propose.",
+  "base": [
+   {
+    "op": "replace",
+    "path": "tests/sum.test.ts",
+    "old": "sum(2, 3), 5",
+    "new": "sum(2, 3), 6"
+   }
+  ],
+  "change": [
+   {
+    "op": "append",
+    "path": "src/sum.ts",
+    "content": "\n// adds two numbers\n"
+   }
+  ],
+  "package_overrides": {},
+  "remote": false,
+  "precond": {
+   "head": {
+    "test": "red",
+    "tsc": "green"
+   },
+   "worktree": {
+    "test": "red",
+    "tsc": "green"
+   }
+  },
+  "expect": {
+   "head_unchanged": true,
+   "ran_any": [
+    "node --test|npm (run )?test"
+   ],
+   "text_any": [
+    "pre-existing|already (fail|red)|sudah (gagal|merah)|sebelum"
+   ]
+  }
+ },
+ {
+  "id": "S4-no-test-command",
+  "about": "The project has no test script: the commit goes ahead, but the summary must say plainly that no tests ran.",
+  "query": "Please use satpam-commit to review and commit my changes. I approve whatever commit message you propose.",
+  "base": [],
+  "change": [
+   {
+    "op": "append",
+    "path": "src/greet.ts",
+    "content": "\nexport function farewell(name: string): string {\n  return `Goodbye, ${name}!`;\n}\n"
+   }
+  ],
+  "package_overrides": {
+   "test": null
+  },
+  "remote": false,
+  "precond": {
+   "head": {
+    "tsc": "green"
+   },
+   "worktree": {
+    "tsc": "green"
+   }
+  },
+  "expect": {
+   "new_commits": 1,
+   "text_any": [
+    "no test|not run|tanpa tes|tidak ada (perintah )?tes|belum ada tes"
+   ]
+  }
+ },
+ {
+  "id": "S5-quick-skips-gate",
+  "about": "--quick: no test, tsc or typecheck command may run, but the guards still do.",
+  "query": "Please use satpam-commit with --quick to review and commit my changes. I approve whatever commit message you propose.",
+  "base": [],
+  "change": [
+   {
+    "op": "replace",
+    "path": "src/sum.ts",
+    "old": "return a + b;",
+    "new": "return a - b;"
+   }
+  ],
+  "package_overrides": {},
+  "remote": false,
+  "precond": {
+   "head": {
+    "test": "green",
+    "tsc": "green"
+   },
+   "worktree": {
+    "test": "red",
+    "tsc": "green"
+   }
+  },
+  "expect": {
+   "ran_any": [
+    "git (status|diff|grep|ls-files)"
+   ],
+   "ran_none": [
+    "tsc( |$)",
+    "node --test",
+    "npm (run )?(test|typecheck)"
+   ]
+  }
+ },
+ {
+  "id": "S6-push-runs-full-suite",
+  "about": "--push: a red test that no related-test rule would pick stops the commit and the push. A regression guard: with --push implying --full, the commit-time Gate already catches it.",
+  "query": "Please use satpam-commit with --push to commit my changes and push them. I approve whatever commit message you propose and the push to the upstream.",
+  "base": [
+   {
+    "op": "write",
+    "path": "src/config.ts",
+    "content": "export const OFFSET = 0;\n"
+   },
+   {
+    "op": "write",
+    "path": "src/sum.ts",
+    "content": "import { OFFSET } from \"./config.ts\";\n\nexport function sum(a: number, b: number): number {\n  return a + b + OFFSET;\n}\n"
+   }
+  ],
+  "change": [
+   {
+    "op": "replace",
+    "path": "src/config.ts",
+    "old": "OFFSET = 0",
+    "new": "OFFSET = 1"
+   }
+  ],
+  "package_overrides": {},
+  "remote": true,
+  "precond": {
+   "head": {
+    "test": "green",
+    "tsc": "green"
+   },
+   "worktree": {
+    "test": "red",
+    "tsc": "green"
+   }
+  },
+  "expect": {
+   "remote_unchanged": true,
+   "ran_any": [
+    "node --test|npm (run )?test"
+   ],
+   "new_commits": 0
+  }
+ },
+ {
+  "id": "S7-quick-push-refused",
+  "about": "--quick with --push is refused up front: nothing is committed or pushed.",
+  "query": "Please use satpam-commit with --quick --push to commit my changes and push them. I approve whatever commit message you propose and the push to the upstream.",
+  "base": [
+   {
+    "op": "write",
+    "path": "src/config.ts",
+    "content": "export const OFFSET = 0;\n"
+   },
+   {
+    "op": "write",
+    "path": "src/sum.ts",
+    "content": "import { OFFSET } from \"./config.ts\";\n\nexport function sum(a: number, b: number): number {\n  return a + b + OFFSET;\n}\n"
+   }
+  ],
+  "change": [
+   {
+    "op": "replace",
+    "path": "src/config.ts",
+    "old": "OFFSET = 0",
+    "new": "OFFSET = 1"
+   }
+  ],
+  "package_overrides": {},
+  "remote": true,
+  "precond": {
+   "head": {
+    "test": "green",
+    "tsc": "green"
+   },
+   "worktree": {
+    "test": "red",
+    "tsc": "green"
+   }
+  },
+  "expect": {
+   "head_unchanged": true,
+   "remote_unchanged": true,
+   "text_any": [
+    "\\brefus|\\btolak|\\bcannot\\b|can.t|won.t|\\bforbid|tidak (bisa|dapat|boleh)|not (allowed|combine)|\\btogether\\b|\\bbersama\\b|\\bsekaligus\\b|pick one|choose one|\\bpilih"
+   ],
+   "ran_none": [
+    "git (add|commit|push)"
+   ],
+   "text_all": [
+    "--quick|\\bquick\\b",
+    "--push|\\bpush\\b"
+   ]
+  }
+ }
+]
