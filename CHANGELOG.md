@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 — 2026-11-23
 
 - `--quick` is refused together with `--push`, because a push has to go through the Gate. Before,
   `--quick --push` committed and pushed with no checks (the baseline run recorded the remote ref

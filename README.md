@@ -80,7 +80,7 @@ listed in `CHANGELOG.md`.
 
 ## Status
 
-Latest release: `v0.1.2`. What has and has not been tested:
+Latest release: `v0.1.3`. What has and has not been tested:
 
 - **Install:** `npx skills add` succeeds and the installed copy is byte-identical to the repo.
 - **Behavior:** throwaway repositories with planted traps (secret, build output, conflict
