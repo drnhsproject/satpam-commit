@@ -17,6 +17,8 @@ alone. Never invent a result, a file, or command output.
 - Commit only what the user can see and approve. Never use `git add -A`, `git add .`, or
   `git commit -a`: stage by explicit path, so a stray file never rides along.
 - No guard is skipped by any flag, and "just commit it" does not waive a blocking finding.
+- `--quick` and `--push` never go together: refuse the pair before doing anything else, say that
+  a push needs the Gate, and ask the user to pick one flag. Nothing is staged, committed or pushed.
 - Never run destructive commands (`git reset --hard`, `git clean`, `git checkout -- <file>`,
   `git stash drop`, force-push, deleting branches) unless the user approves that exact
   command in the current message.
@@ -32,12 +34,13 @@ alone. Never invent a result, a file, or command output.
 ```
 /satpam-commit                    full flow
 /satpam-commit --dry-run          propose everything, change nothing (guards still run)
-/satpam-commit --quick            skip format, lint, typecheck and tests (guards still run)
-/satpam-commit --full             run the whole test suite instead of the related tests
+/satpam-commit --quick            skip format, lint, typecheck and tests (guards still run; refused with --push)
+/satpam-commit --full             run the whole test suite instead of the related tests (--push implies it)
 /satpam-commit --single           one commit, skip the split proposal
 /satpam-commit --split            preselect the split proposal in the Step 3 question
 /satpam-commit --amend            fold the staged work into the last commit (local, unpushed only)
-/satpam-commit --push             after committing: pull with rebase, re-scan, push to the upstream
+/satpam-commit --push             after committing: pull with rebase, re-scan, run the whole Gate with the
+                                  full suite, push to the upstream
 /satpam-commit --scope=<path>     limit to one path
 ```
 
@@ -207,13 +210,16 @@ config. Run, on the staged files where the tool allows it:
 1. **Format**: the project's formatter in write mode, then re-stage only the files it changed
    among those you already staged (never new files).
 2. **Lint** and **typecheck** (`tsc --noEmit` when a `tsconfig.json` exists, even without a script).
-3. **Tests**: the tests related to the staged files; the whole suite with `--full`.
+3. **Tests**: the tests related to the staged files; the whole suite with `--full` or `--push`.
 
 If a tool is not installed or no command exists, log `not run — <reason>` and go on; do not
-invent a command. A red gate stops the commit: show the first failing lines and ask whether to
-fix it now (you fix only what the gate flags, in the staged files), or stop. A failure that
-also happens on the last commit is `pre-existing`: say so, and let the user choose. With a
-split, run the gate per commit when it is cheap, otherwise once on the final state.
+invent a command. When the project has no test command at all, log `not run — no test command`
+and put a separate first line in the final summary (Step 6) saying no tests ran, so the commit
+is not verified by tests. That is a warning, not a block. A red gate stops the commit: show the
+first failing lines and ask whether to fix it now (you fix only what the gate flags, in the
+staged files), or stop. A failure that also happens on the last commit is `pre-existing`: say
+so, and let the user choose. With a split, run the gate per commit when it is cheap, otherwise
+once on the final state.
 
 ## Step 5 — Commit message
 
@@ -237,12 +243,18 @@ among your own paths, and commit again as a **new** commit; do not amend a faile
 
 Show `git log --oneline -n <commits made>` and `git status --short` so the user sees what is
 left uncommitted. With `--push`: `git pull --rebase` on the current branch, re-run the
-conflict scan and the gate on anything the rebase brought in, then `git push` to the
-branch's upstream only (set it with `-u` if none, after saying so). Stop on any conflict,
-rejected push, or divergence and hand back; never force-push.
+conflict scan on anything the rebase brought in, then run the Gate (Step 4, full suite) on the
+final state, unless the pull changed nothing and Step 4 already ran the full suite on this same
+HEAD. Before a push the formatter runs in check-only mode (or not at all), which overrides
+Step 4 item 1: lint, typecheck and the full suite decide. A red Gate stops the push: show the
+first failing lines and hand back. A tool that is missing or a project with no test command is a
+warning (Step 4), not a stop. Only then `git push` to the branch's upstream only (set it with
+`-u` if none, after saying so). Stop on any conflict, rejected push, or divergence and hand
+back; never force-push.
 
-End with, in the user's language: the commits made (hash, subject), anything left unstaged
-and why, checks not run, and the next step. Then stop.
+End with, in the user's language: first, when the project has no test command, one line saying
+no tests ran; then the commits made (hash, subject), anything left unstaged and why, checks
+not run, and the next step. Then stop.
 
 ## Never
 
@@ -251,4 +263,5 @@ and why, checks not run, and the next step. Then stop.
 - Commit on a protected branch, in a detached HEAD, or in the middle of a merge conflict,
   rebase, cherry-pick or revert.
 - Push without `--push`, force-push at all, or rewrite published history.
+- Push while the Gate is red.
 - Report a check as passed that you did not run.
