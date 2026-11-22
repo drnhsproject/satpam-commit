@@ -1,0 +1,10 @@
+# Agent working notes (plans, reviews, QA reports)
+.agents/
+
+# Python bytecode (evals/run-gate.py imports run-triggers.py)
+__pycache__/
+*.pyc
+
+# Dependencies and OS noise
+node_modules/
+.DS_Store
