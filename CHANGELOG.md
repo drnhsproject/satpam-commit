@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- `--quick` is refused together with `--push`, because a push has to go through the Gate. Before,
+  `--quick --push` committed and pushed with no checks (the baseline run recorded the remote ref
+  moving; per-run counts were not kept). `--push` now runs the whole test suite (implies
+  `--full`); a red Gate stops the push, a missing tool or no test command is a warning. Before a
+  push the formatter is check-only, and the second full run is skipped when the pull changed
+  nothing. Behaviour change: pushes are slower on large suites.
+- A project with no test command now gets a separate first line in the final summary saying no
+  tests ran (the commit is still allowed).
+- New Gate eval, `evals/run-gate.py` + `evals/gate-scenarios.json` + `evals/fixtures/gate-ts/`:
+  7 scenarios x 3 runs, judged from git state and executed commands. Baseline 5/7 (S3 1/3,
+  S7 0/3); after 7/7 pass 3/3. S7 was redefined (refusal instead of Gate-before-push) and S4/S6
+  already passed before, so only S3 and S7 changed. `--setup-only` checks every precondition without an agent
+  session; `--verbose` prints failing runs.
+- Eval finding: a skill installed globally shadows the copy in the temporary project, so runs
+  measured the old rules. `run-gate.py` passes `--setting-sources project`. `run-triggers.py`
+  has the same exposure and was not changed here: its 6-run result may have measured an
+  installed copy rather than the repo copy.
+
 ## 0.1.2 — 2026-11-16
 
 - Works across agents: `SKILL.md` now says what to do where there are no slash commands or no

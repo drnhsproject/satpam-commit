@@ -13,10 +13,10 @@ In Claude Code, run it as a slash command. In an agent without slash commands, a
 ```
 /satpam-commit                    review → guard → stage → gate → commit
 /satpam-commit --dry-run          propose everything, change nothing
-/satpam-commit --quick            skip format, lint, typecheck, tests (guards still run)
+/satpam-commit --quick            skip format, lint, typecheck, tests (guards still run; not with --push)
 /satpam-commit --split | --single preselect the split proposal, or force one commit
 /satpam-commit --amend            fold staged work into the last local commit
-/satpam-commit --push             after committing: pull with rebase, re-scan, push upstream
+/satpam-commit --push             after committing: pull with rebase, re-scan, run the full suite, push upstream
 ```
 
 ## What it does
@@ -32,7 +32,9 @@ In Claude Code, run it as a slash command. In an agent without slash commands, a
   docs), ordered so every commit stands on its own. You choose: as proposed, one commit,
   or your own grouping.
 - **Runs the project's own gate**: formatter, lint, typecheck, related tests. It detects the
-  tools instead of assuming them, and logs `not run` when none exist.
+  tools instead of assuming them, and logs `not run` when none exist. With no test command at
+  all it says so on the first line of the summary. `--push` runs the whole suite first, and
+  `--quick` is refused together with `--push`.
 - **Writes a Conventional Commit from the actual diff**, shows it, and waits for your OK.
 
 ## What it never does
@@ -85,11 +87,26 @@ Latest release: `v0.1.2`. What has and has not been tested:
   markers, protected branch, rebase and push paths), plus a real repository run on a second
   agent runtime with tool calling. All 4 planted traps were caught, including a gitignored
   `.env`, and no destructive command ran.
+- **Gate, Claude Code only:** `evals/run-gate.py` builds throwaway repositories from a real
+  TypeScript project (npm, tsc, `node --test`) and judges 7 scenarios from git state and the
+  commands that ran: red related test, type error with no typecheck script, test already red at
+  HEAD, no test command, `--quick`, `--push` with a test only the full suite catches, and
+  `--quick` with `--push`. 3 runs each. On the rules before the next release 5/7 passed; the
+  failures were S3 (1/3, wording) and S7 (0/3, the old S7 expected the Gate to run before a
+  push, and the baseline recorded the remote ref moving; per-run counts were not kept). S7 was
+  then redefined as "refused up front", so before and after are not the same S7. S4 and S6
+  already passed 3/3 before the changes, so they guard against regressions and show no
+  improvement. After the changes 7/7 pass 3/3. S3 went from 1/3 to 3/3 with no rule change for
+  it: treat it as wording noise. Limits: the query pre-approves the commit message and push
+  because a headless run cannot answer, so the interactive confirmation path is not measured;
+  one model, one fixture; the Bash tool is not sandboxed.
 - **Triggering, Claude Code only:** 16 queries x 6 runs (`evals/`): 15/16 pass. All 8 negative
   queries (push, merge, rebase, deploy, unrelated) stayed silent in all 48 runs; the 7 plain-
   language commit requests triggered 41 of 42 runs. The one failing query is the literal
   `/satpam-commit` sent through `claude -p`, which the headless runner does not treat as a
-  slash command; this is probably a runner artifact, not measured beyond that.
+  slash command; this is probably a runner artifact, not measured beyond that. Caveat: the runner
+  did not isolate the project copy from a globally installed one, so these runs may have used an
+  installed copy rather than the repo copy; not re-measured.
 - **Other agents:** the behavior run above is the only evidence. Triggering has not been
   measured on them; `evals/triggers-satpam-commit.json` is plain data you can reuse.
 
