@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 — 2026-11-23
+
+- New "Reply style" block in `SKILL.md`: the reply leads with the answer, with no greeting, announcement or recap; complete short sentences; negations, numbers and units are never shortened; warnings and questions to the user keep full wording. Text saved to files still follows the skill's own file rules.
+
 ## 0.1.3 — 2026-11-23
 
 - `--quick` is refused together with `--push`, because a push has to go through the Gate. Before,
